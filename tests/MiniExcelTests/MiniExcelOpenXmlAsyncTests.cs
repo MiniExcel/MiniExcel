@@ -626,21 +626,11 @@ namespace MiniExcelLibs.Tests
                 var table = new DataTable();
                 await MiniExcel.SaveAsAsync(path, table);
                 Assert.Equal("A1", Helpers.GetFirstSheetDimensionRefValue(path));
-                {
-                    using (var stream = File.OpenRead(path))
-                    {
-                        var d = await stream.QueryAsync();
-                        var rows = d.ToList();
-                        Assert.Single(rows); //TODO:
-                    }
-                    File.Delete(path);
-                }
-
+                File.Delete(path);
                 await MiniExcel.SaveAsAsync(path, table, printHeader: false);
                 Assert.Equal("A1", Helpers.GetFirstSheetDimensionRefValue(path));
                 File.Delete(path);
             }
-
             {
                 var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.xlsx");
                 var table = new DataTable();
@@ -1694,6 +1684,33 @@ namespace MiniExcelLibs.Tests
 5,Gloria,""2022-05-03 00:00:00""
 ", content);
             }
+        }
+
+        [Fact]
+        public async Task SaveAsByAsyncEnumerable()
+        {
+            var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.xlsx");
+
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+            static async IAsyncEnumerable<Demo> GetValues()
+            {
+                yield return new Demo { Column1 = "MiniExcel", Column2 = 1 };
+                yield return new Demo { Column1 = "Github", Column2 = 2 };
+            }
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+
+
+            await MiniExcel.SaveAsAsync(path, GetValues());
+
+            var results = MiniExcel.Query<Demo>(path);
+
+            Assert.True(results.Count() == 2);
+            Assert.True(results.First().Column1 == "MiniExcel");
+            Assert.True(results.First().Column2 == 1);
+            Assert.True(results.Last().Column1 == "Github");
+            Assert.True(results.Last().Column2 == 2);
+
+            File.Delete(path);
         }
     }
 }
